@@ -1,0 +1,52 @@
+# This is a basic workflow to help you get started with Actions
+
+name: ghcr_publish 
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+  push:
+    branches: [ my-stable ]
+  pull_request:
+    branches: [ my-stable ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+  
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true 
+
+      - name: Build image
+        run: |
+          docker build . --tag lastest
+          docker build . --tag latest_atomicparsley --build-arg ATOMICPARSLEY=1
+
+      #https://medium.com/cooking-with-azure/publish-containers-to-github-container-registry-with-github-actions-4e39700ae14c
+      - name: Log into GitHub Container Registry
+      # Create a PAT with `read:packages` and `write:packages` scopes and save it as an Actions secret `CR_PAT`
+        run: echo "${{ secrets.CR_PAT }}" | docker login https://ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Push image to GitHub Container Registry
+        run: |
+          IMAGE_ID=ghcr.io/${{ github.repository }}
+
+          # Change all uppercase to lowercase
+          IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+
+          echo IMAGE_ID=$IMAGE_ID
+
+          docker tag lastest $IMAGE_ID:latest
+          docker tag latest_atomicparsley $IMAGE_ID:latest_atomicparsley
+
+          docker push $IMAGE_ID:latest
+          docker push $IMAGE_ID:latest_atomicparsley
